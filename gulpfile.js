@@ -23,7 +23,7 @@ const dateString = 'Updated : ' + (new Date()).toISOString().substring(0, 10);
 const banner = '/* <%= creative.name %> v<%= creative.version %>\n' + dateString + ' */\n';
 const port = 9990;
 
-gulp.task('serve', ['clean', /*'test',*/ 'build-dev', 'build-native-dev', 'build-cookie-sync', 'build-uid-dev', 'connect'/*, 'watch'*/]);
+gulp.task('serve', ['clean', 'test', 'build-dev', 'build-native-dev', 'build-cookie-sync', 'build-uid-dev', 'connect', 'watch']);
 
 gulp.task('build', ['build-prod', 'build-cookie-sync', 'build-native', 'build-uid']);
 
