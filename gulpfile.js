@@ -23,7 +23,7 @@ const dateString = 'Updated : ' + (new Date()).toISOString().substring(0, 10);
 const banner = '/* <%= creative.name %> v<%= creative.version %>\n' + dateString + ' */\n';
 const port = 9990;
 
-gulp.task('serve', ['clean', 'test', 'build-dev', 'build-native-dev', 'build-cookie-sync', 'build-uid-dev', 'connect', 'watch']);
+gulp.task('serve', ['clean', /*'test',*/ 'build-dev', 'build-native-dev', 'build-cookie-sync', 'build-uid-dev', 'connect'/*, 'watch'*/]);
 
 gulp.task('build', ['build-prod', 'build-cookie-sync', 'build-native', 'build-uid']);
 
@@ -82,7 +82,7 @@ gulp.task('build-uid-dev', () => {
   var cloned = _.cloneDeep(webpackConfig);
   delete cloned.devtool;
   cloned.output.filename = 'uid.js';
-  
+
   return gulp.src(['src/ssp-userids/uid.js'])
     .pipe(webpackStream(cloned))
     .pipe(gulp.dest('build'));
@@ -92,7 +92,7 @@ gulp.task('build-uid', () => {
   var cloned = _.cloneDeep(webpackConfig);
   delete cloned.devtool;
   cloned.output.filename = 'uid.js';
-  
+
   return gulp.src(['src/ssp-userids/uid.js'])
     .pipe(webpackStream(cloned))
     .pipe(uglify())
@@ -122,10 +122,11 @@ gulp.task('build-cookie-sync', () => {
 gulp.task('connect', () => {
   return gulp.src(".").
     pipe(webserver({
-      livereload: true,
+      host: '0.0.0.0',
+      livereload: false,
       port,
       directoryListing: true,
-      open: true,
+      open: false,
       https: argv.https
     }));
 });
