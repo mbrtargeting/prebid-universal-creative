@@ -51,8 +51,8 @@ function buildCookieSync() {
 
   let target = gulp.src('resources/load-cookie.html');
   let sources = gulp.src(['src/cookieSync.js'])
-    .pipe(webpackStream(cloned))
-    .pipe(uglify());
+    .pipe(webpackStream(cloned));
+    //.pipe(uglify());
 
   return target.pipe(inject(sources, {
     starttag: '// cookie-sync start',
@@ -150,7 +150,7 @@ function newKarmaCallback(done) {
         process.exit(exitCode);
       }
     }
-  } 
+  }
 }
 
 function setupE2E(done) {
@@ -174,7 +174,7 @@ function watch(done) {
     port,
     root: './'
   });
-  
+
   mainWatcher.on('all', gulp.series(clean, gulp.parallel(buildDev, buildNativeDev, buildCookieSync, buildUidDev), test));
   done();
 }
