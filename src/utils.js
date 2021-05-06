@@ -1,6 +1,20 @@
 const postscribe = require('postscribe');
 import * as domHelper from './domHelper';
 
+/**
+ * Inserts an image pixel with the specified `url` for cookie sync
+ * @param {string} url URL string of the image pixel to load
+ * @param  {function} [done] an optional exit callback, used when this usersync pixel is added during an async process
+ */
+export function triggerPixel(url, done) {
+  const img = new Image();
+  if (done && typeof done === 'function') {
+    img.addEventListener('load', done);
+    img.addEventListener('error', done);
+  }
+  img.src = url;
+}
+
 export function createTrackPixelHtml(url) {
   if (!url) {
     return '';
@@ -183,14 +197,13 @@ export function transformAuctionTargetingData(tagData) {
     formattedKeyMap = convertKeyPairStringToMap(tagData.targetingKeywords);
   }
   renameKnownAuctionKeys(formattedKeyMap);
-
+  
   // set keys not in defined map macros (eg targetingMap) and/or the keys setup within a non-DFP adserver
   Object.keys(tagData).forEach(function (key) {
     if (key !== 'targetingMap' && key !== 'targetingKeywords' && isStr(tagData[key]) && tagData[key] !== '') {
       auctionData[key] = tagData[key];
     }
   });
-
   return auctionData;
 }
 
@@ -206,7 +219,7 @@ export function parseUrl(url) {
     port: +parsed.port,
     pathname: parsed.pathname.replace(/^(?!\/)/, '/'),
     hash: (parsed.hash || '').replace(/^#/, ''),
-    host: parsed.host || window.location.host
+    host: (parsed.host || window.location.host).replace(/:(443|80)$/, '')
   };
 }
 

@@ -1,7 +1,7 @@
 import * as utils from './utils';
 import * as domHelper from './domHelper';
+import {triggerPixel} from './utils';
 
-const GOOGLE_IFRAME_HOSTNAME = 'tpc.googlesyndication.com';
 const DEFAULT_CACHE_HOST = 'prebid.adnxs.com';
 const DEFAULT_CACHE_PATH = '/pbc/v1/cache';
 
@@ -19,6 +19,8 @@ export function newRenderingManager(win, environment) {
    * @property {string} uuid - ID to fetch the value from prebid cache
    * @property {string} mediaType - Creative media type, It can be banner, native or video
    * @property {string} pubUrl - Publisher url
+   * @property {string} winurl
+   * @property {string} winbidid
    */
 
   /**
@@ -28,11 +30,12 @@ export function newRenderingManager(win, environment) {
    */
   let renderAd = function(doc, dataObject) {
     const targetingData = utils.transformAuctionTargetingData(dataObject);
-    if(environment.isMobileApp(targetingData.env)) {
+
+    if (environment.isMobileApp(targetingData.env)) {
       renderAmpOrMobileAd(targetingData.cacheHost, targetingData.cachePath, targetingData.uuid, targetingData.size, targetingData.hbPb, true);
     } else if (environment.isAmp(targetingData.uuid)) {
       renderAmpOrMobileAd(targetingData.cacheHost, targetingData.cachePath, targetingData.uuid, targetingData.size, targetingData.hbPb);
-    } else if (environment.isCrossDomain()) {
+    } else if (!environment.canLocatePrebid()) {
       renderCrossDomain(targetingData.adId, targetingData.adServerDomain, targetingData.pubUrl);
     } else {
       renderLegacy(doc, targetingData.adId);
@@ -66,10 +69,10 @@ export function newRenderingManager(win, environment) {
    * @param {string} pubUrl Url of publisher page
    */
   function renderCrossDomain(adId, pubAdServerDomain = '', pubUrl) {
-    let windowLocation = window.location;
+    let windowLocation = win.location;
     let parsedUrl = utils.parseUrl(pubUrl);
     let publisherDomain = parsedUrl.protocol + '://' + parsedUrl.host;
-    let adServerDomain = pubAdServerDomain || GOOGLE_IFRAME_HOSTNAME;
+    let adServerDomain = pubAdServerDomain || win.location.hostname;
     let fullAdServerDomain = windowLocation.protocol + '//' + adServerDomain;
 
     function renderAd(ev) {
@@ -106,7 +109,7 @@ export function newRenderingManager(win, environment) {
           iframe.style.overflow = 'hidden';
           iframe.src = url;
 
-          domHelper.insertElement(iframe, doc, 'body');
+          domHelper.insertElement(iframe, document, 'body');
         } else {
           console.log(`Error trying to write ad. No ad for bid response id: ${id}`);
         }
@@ -142,6 +145,19 @@ export function newRenderingManager(win, environment) {
     //return `https://${host}${path}`;
     return `//${host}${path}`;
   }
+  
+  /**
+   * update iframe by using size string to resize
+   * @param {string} size
+   */
+  function updateIframe(size) {
+    if (size) {
+      const sizeArr = size.split('x').map(Number);
+      resizeIframe(sizeArr[0], sizeArr[1]);
+    } else {
+      console.log('Targeting key hb_size not found to resize creative');
+    }
+  }
 
   /**
    * Render mobile or amp ad
@@ -156,17 +172,13 @@ export function newRenderingManager(win, environment) {
     // For MoPub, creative is stored in localStorage via SDK.
     let search = 'Prebid_';
     if(uuid.substr(0, search.length) === search) {
-      loadFromLocalCache(uuid)
+      loadFromLocalCache(uuid);
+      //register creative right away to not miss initial geom-update
+      updateIframe(size);
     } else {
       let adUrl = `${getCacheEndpoint(cacheHost, cachePath)}?uuid=${uuid}`;
-
       //register creative right away to not miss initial geom-update
-      if (typeof size !== 'undefined' && size !== "") {
-        let sizeArr = size.split('x').map(Number);
-        resizeIframe(sizeArr[0], sizeArr[1]);
-      } else {
-        console.log('Targeting key hb_size not found to resize creative');
-      }
+      updateIframe(size);
       utils.sendRequest(adUrl, responseCallback(isMobileApp, hbPb));
     }
   }
@@ -183,6 +195,12 @@ export function newRenderingManager(win, environment) {
       let ad = utils.getCreativeCommentMarkup(bidObject);
       let width = (bidObject.width) ? bidObject.width : bidObject.w;
       let height = (bidObject.height) ? bidObject.height : bidObject.h;
+
+      // When Prebid Universal Creative reads from Prebid Cache, we need to have it check for the existence of the wurl parameter. If it exists, hit it.
+      if (bidObject.wurl) {
+        triggerPixel(decodeURIComponent(bidObject.wurl));
+      }
+
       if (bidObject.adm) {
         if(hbPb) { // replace ${AUCTION_PRICE} macro with the hb_pb.
           bidObject.adm = bidObject.adm.replace('${AUCTION_PRICE}', hbPb);
@@ -210,7 +228,7 @@ export function newRenderingManager(win, environment) {
         }
       }
       if (bidObject.burl) {
-        utils.triggerBurl(bidObject.burl);
+        utils.triggerPixel(bidObject.burl);
       }
     }
   };
@@ -250,7 +268,7 @@ export function newRenderingManager(win, environment) {
   function constructMarkup(ad, width, height) {
     let id = utils.getUUID();
     return `<div id="${id}" style="border-style: none; position: absolute; width:100%; height:100%;">
-      <div id="${id}_inner" style="margin: 0 auto; width:${width}; height:${height}; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">${ad}</div>
+      <div id="${id}_inner" style="margin: 0 auto; width:${width}px; height:${height}px; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);">${ad}</div>
       </div>`;
   }
 
