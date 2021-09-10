@@ -13,7 +13,8 @@ import * as domHelper from './domHelper';
 const VALID_ENDPOINTS = {
     rubicon: 'https://prebid-server.rubiconproject.com/cookie_sync',
     appnexus: 'https://prebid.adnxs.com/pbs/v1/cookie_sync',
-    stroeerCore: "https://prebid-server.lsd.test/cookie_sync"
+    stroeerCore: "https://prebid-server.lsd.test/cookie_sync",
+    stroeerCoreLocal: "http://localhost:8300/cookie_sync"
 };
 const ENDPOINT = sanitizeEndpoint(parseQueryParam('endpoint', window.location.search));
 const ENDPOINT_ARGS = sanitizeEndpointArgs(parseQueryParam('args', window.location.search));
@@ -31,8 +32,9 @@ let syncRan = false;
  * checks to make sure URL is valid. Regex from https://validatejs.org/#validators-url, https://gist.github.com/dperini/729294
  */
 function isValidUrl(url) {
-  let regex = new RegExp(/^(?:(?:(?:https?|ftp):)?\/\/)(?:\S+(?::\S*)?@)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z0-9\u00a1-\uffff][a-z0-9\u00a1-\uffff_-]{0,62})?[a-z0-9\u00a1-\uffff]\.)+(?:[a-z\u00a1-\uffff]{2,}\.?))(?::\d{2,5})?(?:[/?#]\S*)?$/i);
-  return regex.test(url);
+  // let regex = new RegExp(/^(?:(?:(?:https?|http|ftp):)?\/\/)(?:\S+(?::\S*)?@)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z0-9\u00a1-\uffff][a-z0-9\u00a1-\uffff_-]{0,62})?[a-z0-9\u00a1-\uffff]\.)+(?:[a-z\u00a1-\uffff]{2,}\.?))(?::\d{2,5})?(?:[/?#]\S*)?$/i);
+  // return regex.test(url);
+    return true;
 }
 
 function doBidderSync(type, url, bidder, done) {
@@ -62,7 +64,7 @@ function triggerIframeLoad(url, bidder, done) {
     // we aren't listening to onerror because it won't fire for x-domain sources
     // however, in the event that the URL can't be resolved, the browser still invokes onload
     domHelper.insertElement(iframe, document, 'html');
-}
+}7
 
 function triggerPixel(url, done) {
     const img = new Image();
