@@ -1,6 +1,7 @@
 import * as utils from './utils';
 import * as domHelper from './domHelper';
 import {triggerPixel} from './utils';
+import {prebidMessenger} from './messaging.js';
 
 const DEFAULT_CACHE_HOST = 'prebid.adnxs.com';
 const DEFAULT_CACHE_PATH = '/pbc/v1/cache';
@@ -70,10 +71,9 @@ export function newRenderingManager(win, environment) {
    */
   function renderCrossDomain(adId, pubAdServerDomain = '', pubUrl) {
     let windowLocation = win.location;
-    let parsedUrl = utils.parseUrl(pubUrl);
-    let publisherDomain = parsedUrl.protocol + '://' + parsedUrl.host;
     let adServerDomain = pubAdServerDomain || win.location.hostname;
     let fullAdServerDomain = windowLocation.protocol + '//' + adServerDomain;
+    const sendMessage = prebidMessenger(pubUrl, win);
 
     function renderAd(ev) {
       let key = ev.message ? 'message' : 'data';
@@ -84,52 +84,72 @@ export function newRenderingManager(win, environment) {
         return;
       }
 
-      let origin = ev.origin || ev.originalEvent.origin;
       if (adObject.message && adObject.message === 'Prebid Response' &&
-          publisherDomain === origin &&
-          adObject.adId === adId &&
-          (adObject.ad || adObject.adUrl)) {
-        let body = win.document.body;
-        let ad = adObject.ad;
-        let url = adObject.adUrl;
-        let width = adObject.width;
-        let height = adObject.height;
+          adObject.adId === adId) {
+        try {
+          let body = win.document.body;
+          let ad = adObject.ad;
+          let url = adObject.adUrl;
+          let width = adObject.width;
+          let height = adObject.height;
 
-        if (adObject.mediaType === 'video') {
-          console.log('Error trying to write ad.');
-        } else if (ad) {
-          const iframe =  domHelper.getEmptyIframe(adObject.height, adObject.width);
-          body.appendChild(iframe);
-          iframe.contentDocument.open();
-          iframe.contentDocument.write(ad);
-          iframe.contentDocument.close();
-        } else if (url) {
-          const iframe = domHelper.getEmptyIframe(height, width);
-          iframe.style.display = 'inline';
-          iframe.style.overflow = 'hidden';
-          iframe.src = url;
+          if (adObject.mediaType === 'video') {
+            signalRenderResult(false, {
+              reason: 'preventWritingOnMainDocument',
+              message: `Cannot render video ad ${adId}`
+            });
+            console.log('Error trying to write ad.');
+          } else if (ad) {
+            const iframe =  domHelper.getEmptyIframe(adObject.height, adObject.width);
+            body.appendChild(iframe);
+            iframe.contentDocument.open();
+            iframe.contentDocument.write(ad);
+            iframe.contentDocument.close();
+            signalRenderResult(true);
+          } else if (url) {
+            const iframe = domHelper.getEmptyIframe(height, width);
+            iframe.style.display = 'inline';
+            iframe.style.overflow = 'hidden';
+            iframe.src = url;
 
-          domHelper.insertElement(iframe, document, 'body');
-        } else {
-          console.log(`Error trying to write ad. No ad for bid response id: ${id}`);
+            domHelper.insertElement(iframe, document, 'body');
+            signalRenderResult(true);
+          } else {
+            signalRenderResult(false, {
+              reason: 'noAd',
+              message: `No ad for ${adId}`
+            });
+            console.log(`Error trying to write ad. No ad markup or adUrl for ${adId}`);
+          }
+        } catch (e) {
+          signalRenderResult(false, {reason: "exception", message: e.message});
+          console.log(`Error in rendering ad`, e);
         }
+      }
+
+      function signalRenderResult(success, {reason, message} = {}) {
+        const payload = {
+          message: 'Prebid Event',
+          adId,
+          event: success ? 'adRenderSucceeded' : 'adRenderFailed',
+        }
+        if (!success) {
+          payload.info = {reason, message};
+        }
+        sendMessage(payload);
       }
     }
 
+
     function requestAdFromPrebid() {
-      let message = JSON.stringify({
+      let message = {
         message: 'Prebid Request',
         adId: adId,
         adServerDomain: fullAdServerDomain
-      });
-      win.parent.postMessage(message, publisherDomain);
+      }
+      sendMessage(message, renderAd);
     }
 
-    function listenAdFromPrebid() {
-      win.addEventListener('message', renderAd, false);
-    }
-
-    listenAdFromPrebid();
     requestAdFromPrebid();
   }
 
@@ -145,7 +165,7 @@ export function newRenderingManager(win, environment) {
     //return `https://${host}${path}`;
     return `//${host}${path}`;
   }
-  
+
   /**
    * update iframe by using size string to resize
    * @param {string} size
