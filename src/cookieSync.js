@@ -13,7 +13,7 @@ import * as domHelper from './domHelper';
 const VALID_ENDPOINTS = {
   rubicon: 'https://prebid-server.rubiconproject.com/cookie_sync',
   appnexus: 'https://prebid.adnxs.com/pbs/v1/cookie_sync',
-  stroeerCore: "https://prebid-server.lsd.test/cookie_sync"
+  stroeerCore: "https://prebid-server-go.lsd.test/cookie_sync"
 };
 const ENDPOINT = sanitizeEndpoint(parseQueryParam('endpoint', window.location.search));
 const ENDPOINT_ARGS = sanitizeEndpointArgs(parseQueryParam('args', window.location.search));
@@ -49,8 +49,8 @@ function doBidderSync(type, url, bidder, done) {
 }
 
 function triggerIframeLoad(url, bidder, done) {
-  if(!url){
-   return;
+  if (!url) {
+    return;
   }
   let iframe = domHelper.getEmptyIframe(0, 0);
   iframe.id = `sync_${bidder}_${Date.now()}`;
@@ -110,7 +110,7 @@ function ajax(url, callback, data, options = {}) {
     }
 
     x = new window.XMLHttpRequest();
-    x.onreadystatechange = function () {
+    x.onreadystatechange = function() {
       if (x.readyState === 4) {
         let status = x.status;
         if ((status >= 200 && status < 300) || status === 304) {
@@ -120,7 +120,7 @@ function ajax(url, callback, data, options = {}) {
         }
       }
     };
-    x.ontimeout = function () {
+    x.ontimeout = function() {
       console.log('xhr timeout after ', x.timeout, 'ms');
     };
 
@@ -240,10 +240,10 @@ function sanitizeGdprConsent(value) {
 function sanitizeBidders(value) {
   if (value) {
     var arr = value.split(',');
-    var filtered = arr.filter(function (el) {
+    var filtered = arr.filter(function(el) {
       return (el) ? true : false;
     });
-    if(filtered.length > 0){
+    if (filtered.length > 0) {
       return filtered;
     }
   }
@@ -256,15 +256,15 @@ function getStringifiedData(endPointArgs) {
   var data = (endPointArgs && typeof endPointArgs === 'object') ? endPointArgs : {}
   data['limit'] = MAX_SYNC_COUNT;
 
-  if(GDPR) data.gdpr = GDPR;
-  if(GDPR_CONSENT) data.gdpr_consent = GDPR_CONSENT;
-  if(IS_AMP) data.filterSettings = {
+  if (GDPR) data.gdpr = GDPR;
+  if (GDPR_CONSENT) data.gdpr_consent = GDPR_CONSENT;
+  if (IS_AMP) data.filterSettings = {
     iframe: {
       bidders: '*',
       filter: 'exclude'
     }
   };
-  if(BIDDER_ARGS) data.bidders = BIDDER_ARGS;
+  if (BIDDER_ARGS) data.bidders = BIDDER_ARGS;
 
   return JSON.stringify(data);
 }
